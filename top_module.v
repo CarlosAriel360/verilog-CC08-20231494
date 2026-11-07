@@ -26,3 +26,9 @@ module top_module #(parameter integer K = 3) (
             match <= 1'b0;
 
             if (en == 1'b1) begin
+
+                if ((cmd[1] == 1'b1) &&
+                    (estado == 2'd3) &&
+                    (cmd[0] == 1'b1)) begin
+                    contador_aviso <= K;
+                end
