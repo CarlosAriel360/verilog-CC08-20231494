@@ -22,4 +22,5 @@ module top_module #(parameter integer K = 3) (
             match <= 1'b0;
             contador_aviso <= 4'd0;
         end
-    
+        else begin
+            match <= 1'b0;
