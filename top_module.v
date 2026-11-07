@@ -41,4 +41,49 @@ module top_module #(parameter integer K = 3) (
 
                 if (cmd[1] == 1'b1) begin
 
-                    case (estado)                
+                    case (estado)     
+
+                        2'd0: begin
+                            if (cmd[0] == 1'b1) begin
+                                estado <= 2'd1;
+                            end
+                            else begin
+                                estado <= 2'd0;
+                            end
+                        end
+
+                        
+                        2'd1: begin
+                            if (cmd[0] == 1'b0) begin
+                                estado <= 2'd2;
+                            end
+                            else begin
+                                
+                                estado <= 2'd1;
+                            end
+                        end
+
+                        
+                        2'd2: begin
+                            if (cmd[0] == 1'b1) begin
+                                estado <= 2'd3;
+                            end
+                            else begin
+                                
+                                estado <= 2'd0;
+                            end
+                        end
+
+                        
+                        2'd3: begin
+                            if (cmd[0] == 1'b1) begin
+                                
+                                match <= 1'b1;
+                                
+                                estado <= 2'd1;
+                            end       
+                            else begin
+                                
+                                estado <= 2'd2;
+                            end
+                        end    
