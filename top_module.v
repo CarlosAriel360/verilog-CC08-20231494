@@ -7,3 +7,4 @@ module top_module #(parameter integer K = 3) (
     output wire [15:0] y
 );
 
+    reg [1:0] estado;
