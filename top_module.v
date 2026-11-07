@@ -86,4 +86,4 @@ module top_module #(parameter integer K = 3) (
                                 
                                 estado <= 2'd2;
                             end
-                        end    
+                        end
