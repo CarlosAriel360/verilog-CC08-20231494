@@ -14,4 +14,6 @@ module top_module #(parameter integer K = 3) (
     assign y[0] = match; 
     assign y[1] = (contador_aviso > 4'd0);
     assign y[15:2] = 14'b00000000000000;
+
+    always @(posedge clk) begin
     
