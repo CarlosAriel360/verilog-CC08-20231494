@@ -24,3 +24,5 @@ module top_module #(parameter integer K = 3) (
         end
         else begin
             match <= 1'b0;
+
+            if (en == 1'b1) begin
