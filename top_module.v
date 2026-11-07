@@ -87,3 +87,15 @@ module top_module #(parameter integer K = 3) (
                                 estado <= 2'd2;
                             end
                         end
+
+                        default: begin
+                            estado <= 2'd0;
+                        end
+
+                    endcase
+                end
+            end
+        end
+    end
+
+endmodule
