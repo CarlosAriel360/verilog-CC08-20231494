@@ -32,3 +32,9 @@ module top_module #(parameter integer K = 3) (
                     (cmd[0] == 1'b1)) begin
                     contador_aviso <= K;
                 end
+
+                 else begin
+                    if (contador_aviso > 4'd0) begin
+                        contador_aviso <= contador_aviso - 4'd1;
+                    end
+                end
