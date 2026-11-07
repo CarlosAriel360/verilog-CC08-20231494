@@ -8,3 +8,4 @@ module top_module #(parameter integer K = 3) (
 );
 
     reg [1:0] estado;
+    reg match;
