@@ -38,3 +38,7 @@ module top_module #(parameter integer K = 3) (
                         contador_aviso <= contador_aviso - 4'd1;
                     end
                 end
+
+                if (cmd[1] == 1'b1) begin
+
+                    case (estado)                
