@@ -1,163 +1,126 @@
-# ProyectoParcial2 Ws in the chat
-# CC08 - Detector de comando serial con solapamiento
+# CC08 — Detector de comando serial con solapamiento
 
-## 1. Información del estudiante
+## 1. Datos del estudiante
 
 - **Matrícula:** 20231494
 - **Correo institucional:** 20231494@itla.edu.do
-- **Reto:** CC08 - Detector de comando serial con solapamiento
-- **Lenguaje:** Verilog HDL
+- **Reto:** CC08 — Detector de comando serial con solapamiento
+- **Lenguaje:** Verilog HDL (compatible con Verilog 2001)
 - **Repositorio:** https://github.com/CarlosAriel360/verilog-CC08-20231494
 
-## 2. Descripción del proyecto
+## 2. Objetivo del proyecto
 
-Este proyecto consiste en desarrollar un circuito digital mediante Verilog capaz de detectar la secuencia binaria `1011` dentro de un flujo de bits recibidos de manera serial.
+Diseñar un circuito digital que reciba bits de forma serial y reconozca la secuencia `1011`, incluso cuando dos coincidencias comparten algún bit (solapamiento). Al detectar la secuencia, el circuito activa la señal `match` durante un ciclo de reloj y carga un contador que mantiene activa la señal `aviso` mientras su valor sea mayor que cero.
 
-El circuito utiliza una máquina de estados finitos (FSM) que permite reconocer la secuencia sin necesidad de almacenar todos los bits ingresados. En su lugar, conserva únicamente la información necesaria para determinar cuánto se ha avanzado en la detección.
+No se requiere una tarjeta FPGA: el funcionamiento se comprueba mediante simulación.
 
-Cuando el circuito reconoce la secuencia completa, activa una señal llamada `match` durante un ciclo de reloj. Al mismo tiempo, activa una ventana de aviso controlada mediante un contador cuyo valor inicial depende del parámetro `K`.
+## 3. Funcionamiento y arquitectura
 
-El detector también permite reconocer secuencias solapadas, es decir, cuando una coincidencia comparte bits con otra.
+El circuito utiliza una **máquina de estados finitos (FSM)**. En lugar de guardar todos los bits recibidos, un registro de dos bits (`estado`) recuerda qué parte útil de `1011` se ha reconocido.
 
-## 3. Funcionamiento del circuito
+| Estado | Información recordada | Qué espera |
+|---|---|---|
+| `2'd0` | Ningún prefijo útil | `1` |
+| `2'd1` | `1` | `0` |
+| `2'd2` | `10` | `1` |
+| `2'd3` | `101` | `1` para completar `1011` |
 
-El circuito trabaja mediante cuatro estados que representan las diferentes etapas de detección de la secuencia `1011`.
+Cuando el detector está en el estado `2'd3` y recibe un `1` válido, reconoce `1011`, activa `match` y pasa al estado `2'd1`. Este cambio conserva el último `1`, que también puede servir como comienzo de la siguiente coincidencia.
 
-- **Estado 0:** El circuito espera recibir un 1. Si recibe un 0, permanece en este estado.
-- **Estado 1:** Ya reconoció el primer 1 y espera recibir un 0 para formar `10`. Si recibe otro 1, permanece en el mismo estado.
-- **Estado 2:** Ya reconoció `10` y espera recibir un 1 para formar `101`. Si recibe un 0, regresa al estado 0.
-- **Estado 3:** Ya reconoció `101` y espera recibir el último 1 para completar `1011`.
+Además, se utilizan los registros `match` (pulso de coincidencia) y `contador_aviso` (contador de cuatro bits). El contador se carga con el parámetro entero `K`, cuyo valor permitido está entre 2 y 8. Si no hay otra coincidencia, disminuye en cada flanco habilitado hasta llegar a cero.
 
-Cuando se completa la secuencia, el circuito activa `match` y regresa al estado 1, conservando el último bit recibido como posible comienzo de otra coincidencia. Si en el estado 3 recibe un 0, regresa al estado 2 porque los últimos dos bits forman `10`.
+El diseño utiliza un único bloque `always @(posedge clk)` para actualizar los registros, reset síncrono y asignaciones no bloqueantes (`<=`). Las salidas se conectan con `assign`.
 
-### Ejemplo de solapamiento
-
-Secuencia recibida: `1011011`
-
-En este caso, el circuito detecta dos coincidencias. La primera termina en el cuarto bit y la segunda termina en el séptimo bit.
-
-Los valores de `match` correspondientes son:
-
-`0, 0, 0, 1, 0, 0, 1`
-
-Esto demuestra cómo el detector puede reconocer dos secuencias compartiendo un mismo bit.
-
-## 4. Arquitectura del circuito
-
-El diseño utiliza lógica secuencial controlada mediante el flanco positivo del reloj `clk`.
-
-Sus componentes principales son:
-
-- **Registro de estado:** Almacena uno de los cuatro estados posibles utilizando dos bits.
-- **Registro match:** Indica cuándo se reconoce la secuencia completa.
-- **Contador de aviso:** Almacena el tiempo restante durante el cual la señal `aviso` permanece activa.
-- **Lógica de control:** Determina el comportamiento del circuito dependiendo de `rst`, `en` y `cmd`.
-
-Las actualizaciones de los registros se realizan mediante asignaciones no bloqueantes (`<=`), utilizando un bloque `always @(posedge clk)`.
-
-Las salidas se conectan mediante instrucciones `assign`.
-
-### Entradas y salidas
+## 4. Entradas y salidas
 
 | Señal | Función |
 |---|---|
-| `clk` | Reloj principal del circuito |
-| `rst` | Reinicio síncrono activo en alto |
-| `en` | Habilitación del funcionamiento |
-| `cmd[0]` | Bit recibido |
-| `cmd[1]` | Indicador de bit válido |
-| `data[7:0]` | Entrada no utilizada en este reto |
-| `y[0]` | Señal de coincidencia `match` |
-| `y[1]` | Señal de aviso |
-| `y[15:2]` | Bits establecidos en cero |
+| `clk` | Reloj del circuito; los registros cambian en el flanco positivo. |
+| `rst` | Reset síncrono, activo en alto y con máxima prioridad. |
+| `en` | Habilita el consumo de bits y el avance del temporizador. |
+| `cmd[0]` | Bit recibido, `0` o `1`. |
+| `cmd[1]` | Indica si el bit recibido es válido. |
+| `cmd[7:2]` | Bits no utilizados; se ignoran. |
+| `data[7:0]` | Entrada no utilizada en este reto. |
+| `y[0]` | `match`: vale `1` cuando se detecta `1011`. |
+| `y[1]` | `aviso`: vale `1` mientras el contador sea mayor que cero. |
+| `y[15:2]` | Siempre valen cero. |
 
-## 5. Prioridades y condiciones especiales
+## 5. Prioridades y casos especiales
 
-El circuito contempla las siguientes condiciones:
+- **Reset (`rst=1`):** borra el estado, `match` y el contador, aunque las demás entradas estén activas.
+- **Pausa (`en=0`):** conserva el estado y el contador, pero `match` se borra en el siguiente flanco.
+- **Bit inválido (`cmd[1]=0`):** el detector no consume ese bit. Si `en=1`, el contador de aviso sigue disminuyendo cuando no hay coincidencia.
+- **Coincidencia:** tiene prioridad sobre el decremento del contador. Si aparece otro `1011`, el contador vuelve a cargarse con `K`.
+- **Solapamiento:** después de reconocer `1011`, se conserva el último `1` volviendo al estado `2'd1`.
 
-**Reset:** Cuando `rst=1`, en el siguiente flanco positivo del reloj se reinicia el estado, se desactiva `match` y se borra el contador de aviso. Tiene prioridad sobre las demás operaciones.
+**Caso límite:** si los bits válidos recibidos forman `1010`, no hay coincidencia, pero los últimos dos bits son `10`. Por eso el detector pasa al estado `2'd2` en lugar de regresar al estado inicial.
 
-**Habilitación:** Cuando `en=0`, el detector conserva su estado y el contador mantiene su valor. Sin embargo, `match` se borra en el siguiente flanco, porque debe durar solamente un ciclo.
+## 6. Ejemplo de funcionamiento
 
-**Bit válido:** El detector solamente consume un bit cuando `en=1` y `cmd[1]=1`. Si el bit no es válido, no modifica el estado de búsqueda.
+Para la secuencia válida `1011011`, las coincidencias aparecen en el cuarto y séptimo bit:
 
-**Temporizador:** Cuando se encuentra la secuencia `1011`, el contador de aviso se carga con el valor de `K`. En los siguientes flancos habilitados sin coincidencia, disminuye hasta llegar a cero, incluso cuando `cmd[1]=0`.
+| Bit recibido (posición) | 1 | 0 | 1 | 1 | 0 | 1 | 1 |
+|---|---|---|---|---|---|---|---|
+| Posición | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+| `match` | 0 | 0 | 0 | 1 | 0 | 0 | 1 |
 
-**Prioridad de coincidencia:** Si ocurre una nueva coincidencia cuando el contador está por terminar, el contador vuelve a cargarse con `K`, en lugar de disminuir.
+Con `K=3`, el contador de aviso se carga con 3 en la primera coincidencia y se vuelve a cargar con 3 cuando ocurre la segunda.
 
-## 6. Caso límite: detección con solapamiento
+## 7. Archivos del repositorio
 
-Uno de los casos especiales del circuito ocurre cuando se recibe la secuencia `1010`.
+- **`top_module.v`:** descripción del circuito sintetizable.
+- **`tb_student.v`:** banco de pruebas con comprobaciones automáticas.
+- **`README.md`:** explicación del proyecto, instrucciones y resultados.
 
-Aunque no corresponde a la secuencia buscada `1011`, sus últimos dos bits forman `10`.
+## 8. Cómo compilar y ejecutar las pruebas
 
-Por esta razón, el detector no regresa al estado 0, sino al estado 2, conservando esa información para continuar buscando una nueva coincidencia.
+Se requiere **Icarus Verilog 12 o posterior**. Desde la carpeta raíz del repositorio:
 
-Este comportamiento es importante para evitar que se pierdan posibles secuencias cuando se reciben muchos bits consecutivos.
+1. Comprobar la versión instalada: `iverilog -V`
+2. Compilar: `iverilog -g2012 -s tb_student -o sim top_module.v tb_student.v`
+3. Ejecutar: `vvp sim`
 
-## 7. Archivos del proyecto
+El archivo generado `sim` es un ejecutable de simulación y **no debe subirse al repositorio**.
 
-| Archivo | Descripción |
+## 9. Resultados de las pruebas propias
+
+Se compiló `top_module.v` junto con `tb_student.v` y se ejecutaron las pruebas en Ubuntu desde Visual Studio Code utilizando Icarus Verilog. El testbench comprueba las configuraciones **`K=3` y `K=5`** en cada ciclo y compara las salidas obtenidas con las esperadas.
+
+| Prueba realizada | Resultado observado |
 |---|---|
-| `top_module.v` | Implementación principal del detector en Verilog |
-| `tb_student.v` | Banco de pruebas automáticas del circuito |
-| `README.md` | Documentación del proyecto y del proceso de desarrollo |
+| Detección de la secuencia `1011` | Aprobada |
+| Dos coincidencias solapadas en `1011011` | Aprobada |
+| Pausa con `en=0` | Aprobada |
+| Avance del temporizador con `cmd[1]=0` | Aprobada |
+| Reset durante una secuencia incompleta y con aviso activo | Aprobada |
+| Ignorar bits inválidos | Aprobada |
+| Conservación del prefijo `10` después de `1010` | Aprobada |
+| Comparaciones para `K=3` y `K=5` | Aprobadas |
 
-## 8. Compilación y simulación
+**Resultado de la ejecución:** 36 ciclos comprobados correctamente, sin errores reportados por el testbench.
 
-Para ejecutar las pruebas se necesita Icarus Verilog versión 12 o posterior.
+Último mensaje de la terminal: `TODAS LAS PRUEBAS PASARON`.
 
-Desde la terminal, dentro de la carpeta del repositorio, se utilizan los siguientes comandos:
+La simulación finalizó normalmente mediante `$finish`, en la línea 193 de `tb_student.v`.
 
-**Compilación:**
+**Alcance:** estos resultados corresponden a las pruebas propias ejecutadas. No representan la aprobación de las pruebas ocultas del docente ni de los 900 ciclos pseudoaleatorios previstos en su evaluación.
 
-`iverilog -g2012 -s tb_student -o sim top_module.v tb_student.v`
+## 10. Historial de desarrollo en GitHub
 
-**Ejecución de la simulación:**
+El historial del repositorio conserva los avances realizados durante el desarrollo. La tabla siguiente debe completarse con **hashes reales** y descripciones que correspondan a cambios verificables en el repositorio.
 
-`vvp sim`
-
-El primer comando compila el circuito y su banco de pruebas. El segundo ejecuta la simulación.
-
-El archivo generado `sim` no debe incluirse en el repositorio.
-
-## 9. Pruebas y resultados
-
-El banco de pruebas debe verificar automáticamente el comportamiento del circuito para `K=3` y `K=5`.
-
-Los casos que se deben comprobar son:
-
-| Prueba | Resultado |
+| Hash completo del commit | Avance realizado |
 |---|---|
-| Detección normal de `1011` | Pendiente de verificar |
-| Dos coincidencias solapadas en `1011011` | Pendiente de verificar |
-| Reset durante una secuencia parcial | Pendiente de verificar |
-| Pausa mediante `en=0` | Pendiente de verificar |
-| Bits inválidos mediante `cmd[1]=0` | Pendiente de verificar |
-| Recarga y vencimiento del contador | Pendiente de verificar |
-| Funcionamiento con `K=3` y `K=5` | Pendiente de verificar |
+| `PENDIENTE: hash real` | Interfaz, estructura inicial y planificación. |
+| `PENDIENTE: hash real` | Implementación parcial funcional del detector. |
+| `PENDIENTE: hash real` | Pruebas automáticas y depuración. |
+| `PENDIENTE: hash real` | Solución final y documentación. |
 
-**Estado de las pruebas:** pendiente de completar el banco de pruebas y ejecutar la simulación.
+Para consultar el historial desde la terminal: `git log --format="%H %s" --reverse`.
 
-Los resultados de esta sección deberán actualizarse después de realizar las comprobaciones automáticas.
-
-## 10. Historial de commits
-
-El proyecto se desarrolla de manera progresiva utilizando Git y GitHub, conservando los cambios realizados en cada etapa.
-
-| Commit (hash) | Avance realizado |
-|---|---|
-| Pendiente de colocar | Creación de la interfaz y estructura inicial |
-| Pendiente de colocar | Implementación parcial de la lógica del detector |
-| Pendiente de colocar | Incorporación de pruebas y correcciones |
-| Pendiente de colocar | Finalización del circuito y documentación |
-
-Los hashes y las descripciones de esta tabla deben corresponder a commits reales del historial del repositorio.
+**Commit final para entregar al profesor:** `PENDIENTE: agregar el hash completo del commit final después de hacer la última confirmación`.
 
 ## 11. Conclusión
 
-Este proyecto permite comprender el funcionamiento de una máquina de estados finitos aplicada al reconocimiento de secuencias binarias.
-
-La implementación utiliza cuatro estados para recordar el avance de la detección, evitando almacenar todos los bits recibidos. También permite trabajar con coincidencias solapadas y controlar una señal temporal mediante un contador parametrizable.
-
-Mediante este ejercicio se aplican conceptos de lógica secuencial, registros, condiciones de control, temporización y descripción de hardware utilizando Verilog.
+El proyecto permitió implementar y verificar un detector de secuencias seriales utilizando una máquina de estados finitos. El circuito recuerda únicamente el prefijo necesario, detecta coincidencias solapadas y controla una ventana temporal de aviso mediante el parámetro `K`. Las 36 pruebas propias realizadas en las configuraciones `K=3` y `K=5` finalizaron correctamente.
